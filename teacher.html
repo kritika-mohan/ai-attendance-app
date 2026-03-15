@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher – SMARTCURRICULUM</title>
+  <meta name="description" content="Teacher attendance control panel for SMARTCURRICULUM." />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="bg-animated"></div>
+
+  <!-- Loading overlay -->
+  <div class="loading-overlay hidden" id="loading-overlay">
+    <div class="loader"></div>
+    <p class="loading-text">Verifying session…</p>
+  </div>
+
+  <!-- ── Navbar ─────────────────────────────────────────────────── -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="navbar-logo">S</div>
+      <span class="navbar-title">SMARTCURRICULUM</span>
+    </div>
+    <div class="navbar-actions">
+      <span style="font-size:0.85rem;color:var(--text-muted)" id="teacher-name-nav">Teacher</span>
+      <a href="dashboard.html" class="btn btn-ghost btn-sm">📊 Dashboard</a>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">☀️</button>
+      <button class="btn btn-ghost btn-sm" id="logout-btn">Sign Out</button>
+    </div>
+  </nav>
+
+  <!-- ── Main Content ───────────────────────────────────────────── -->
+  <main class="content-area" id="main-content">
+    <div class="grid-2" style="gap:28px;align-items:start">
+
+      <!-- Left: QR Panel -->
+      <div>
+        <h1 class="section-title">Attendance Session</h1>
+        <p class="section-subtitle" id="session-course-label" style="margin-bottom:24px">Ready to start</p>
+
+        <div class="card" id="qr-panel">
+          <div class="qr-wrapper" id="idle-state">
+            <div style="text-align:center;padding:40px 0">
+              <div style="font-size:4rem;margin-bottom:16px">📋</div>
+              <h3 style="font-family:var(--font-display);margin-bottom:8px">Start a Session</h3>
+              <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:24px">
+                Click below to generate a dynamic QR code.<br />It will refresh every 30 seconds automatically.
+              </p>
+              <button class="btn btn-primary btn-lg" id="start-btn" onclick="startSession()">
+                ▶ Start Attendance
+              </button>
+            </div>
+          </div>
+
+          <!-- Active QR state (hidden until session starts) -->
+          <div class="qr-wrapper hidden" id="active-state">
+            <div class="qr-box" id="qr-box">
+              <div class="qr-refresh-ring"></div>
+              <div id="qr-code-container"></div>
+            </div>
+
+            <!-- Countdown timer -->
+            <div style="width:100%;max-width:260px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.82rem;color:var(--text-muted)">
+                <span>Next refresh in</span>
+                <span class="qr-timer-text" id="timer-text"><span>30</span>s</span>
+              </div>
+              <div class="qr-timer-bar">
+                <div class="qr-timer-fill" id="timer-fill" style="width:100%"></div>
+              </div>
+            </div>
+
+            <!-- Session meta -->
+            <div class="session-meta">
+              <span>Session ID:</span>
+              <span class="session-id-chip" id="session-id-chip">---</span>
+            </div>
+
+            <button class="btn btn-danger btn-sm" id="stop-btn" onclick="stopSession()">
+              ⏹ End Session
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Live Attendance -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h2 class="section-title" style="margin-bottom:0">Live Attendance</h2>
+          <span class="badge badge-success" id="live-badge" style="display:none">
+            <span class="counter-dot green"></span> LIVE
+          </span>
+        </div>
+
+        <!-- Stat pills -->
+        <div class="live-counter" style="margin-bottom:24px">
+          <div class="counter-pill">
+            <span class="counter-dot green"></span>
+            <span>Present: <strong id="count-present">0</strong></span>
+          </div>
+          <div class="counter-pill">
+            <span class="counter-dot blue"></span>
+            <span>Total: <strong id="count-total">0</strong></span>
+          </div>
+          <div class="counter-pill" id="pct-pill" style="display:none">
+            📈 <strong id="count-pct">0%</strong>
+          </div>
+        </div>
+
+        <!-- Live Attendance Table -->
+        <div class="table-wrapper">
+          <table class="sc-table" id="live-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Course</th>
+                <th>Time</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="live-tbody">
+              <tr>
+                <td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">
+                  Session not started yet.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:16px;text-align:right">
+          <a href="dashboard.html" class="btn btn-outline btn-sm">View Full Dashboard →</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ── CDN Libraries ────────────────────────────────────────────── -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="config.js"></script>
+
+  <script type="module">
+    import { requireRole, logoutUser }            from './js/auth.js';
+    import { startQRSession, stopQRSession, getCurrentSessionId } from './js/qrGenerator.js';
+    import { getSessionAttendance }               from './js/attendance.js';
+    import { initThemeToggle, showToast, formatDate } from './js/utils.js';
+    import { supabaseClient }                     from './js/supabaseClient.js';
+
+    initThemeToggle('theme-toggle');
+    document.getElementById('logout-btn').addEventListener('click', logoutUser);
+
+    let teacherProfile = null;
+    let realtimeSub    = null;
+
+    // ── Auth guard ──
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.remove('hidden');
+
+    const auth = await requireRole('teacher');
+    if (!auth) return;
+
+    teacherProfile = auth.profile;
+    overlay.classList.add('hidden');
+    document.getElementById('teacher-name-nav').textContent = teacherProfile.name;
+
+    // ── Start Session ──
+    window.startSession = async function() {
+      try {
+        document.getElementById('idle-state').classList.add('hidden');
+        document.getElementById('active-state').classList.remove('hidden');
+        document.getElementById('live-badge').style.display = 'inline-flex';
+        document.getElementById('pct-pill').style.display   = 'flex';
+
+        const sessionId = await startQRSession(teacherProfile.id, teacherProfile.course, {
+          containerId: 'qr-code-container',
+          timerFillId: 'timer-fill',
+          timerTextId: 'timer-text',
+          sessionIdEl: document.getElementById('session-id-chip'),
+        });
+
+        document.getElementById('session-course-label').textContent =
+          `Course: ${teacherProfile.course} · Session active`;
+
+        // Subscribe to realtime attendance
+        subscribeToAttendance(sessionId);
+
+        showToast('success', 'Session started! QR code is live.');
+      } catch (err) {
+        showToast('error', 'Failed to start session: ' + err.message);
+        document.getElementById('idle-state').classList.remove('hidden');
+        document.getElementById('active-state').classList.add('hidden');
+      }
+    };
+
+    // ── Stop Session ──
+    window.stopSession = function() {
+      stopQRSession();
+      if (realtimeSub) supabaseClient.removeChannel(realtimeSub);
+
+      document.getElementById('active-state').classList.add('hidden');
+      document.getElementById('idle-state').classList.remove('hidden');
+      document.getElementById('live-badge').style.display = 'none';
+      document.getElementById('pct-pill').style.display   = 'none';
+      document.getElementById('session-course-label').textContent = 'Session ended';
+      showToast('info', 'Attendance session ended.');
+    };
+
+    // ── Realtime subscription ──
+    function subscribeToAttendance(sessionId) {
+      realtimeSub = supabaseClient
+        .channel(`teacher:${sessionId}`)
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'attendance',
+          filter: `session_id=eq.${sessionId}`,
+        }, () => {
+          refreshLiveTable(sessionId);
+        })
+        .subscribe();
+
+      // Initial load
+      refreshLiveTable(sessionId);
+    }
+
+    async function refreshLiveTable(sessionId) {
+      const records = await getSessionAttendance(sessionId);
+
+      const tbody = document.getElementById('live-tbody');
+      if (!records.length) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px">
+          Waiting for students to scan...</td></tr>`;
+      } else {
+        tbody.innerHTML = records.map(r => `
+          <tr>
+            <td><strong>${escHtml(r.users?.name ?? '—')}</strong></td>
+            <td>${escHtml(r.users?.course ?? '—')}</td>
+            <td style="font-size:0.82rem;color:var(--text-muted)">${formatDate(r.timestamp)}</td>
+            <td><span class="badge badge-success">✓ Present</span></td>
+          </tr>
+        `).join('');
+      }
+
+      // Update counters
+      document.getElementById('count-present').textContent = records.length;
+      // Total from DB (all students)
+      const { count } = await supabaseClient
+        .from('users').select('id', { count: 'exact', head: true }).eq('role', 'student');
+      const total = count ?? 0;
+      document.getElementById('count-total').textContent   = total;
+      document.getElementById('count-pct').textContent     =
+        total > 0 ? Math.round((records.length / total) * 100) + '%' : '0%';
+    }
+
+    function escHtml(str) {
+      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  </script>
+</body>
+</html>

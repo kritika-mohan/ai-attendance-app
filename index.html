@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMARTCURRICULUM – Dynamic QR Attendance System</title>
+  <meta name="description" content="SMARTCURRICULUM prevents proxy attendance and provides real-time analytics using dynamic, expiring QR codes." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to content</a>
+  <div class="bg-animated"></div>
+
+  <!-- ── Navbar ─────────────────────────────────────────────────── -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <div class="navbar-logo">S</div>
+      <span class="navbar-title">SMARTCURRICULUM</span>
+    </div>
+    <div class="navbar-actions">
+      <button class="theme-toggle" id="theme-toggle" title="Toggle theme" aria-label="Toggle dark/light mode">☀️</button>
+      <a href="login.html" class="btn btn-primary btn-sm">Login</a>
+    </div>
+  </nav>
+
+  <!-- ── Hero ───────────────────────────────────────────────────── -->
+  <main id="main-content">
+    <section class="hero">
+      <div class="hero-badge">
+        <span class="dot"></span> Live QR Anti-Proxy System
+      </div>
+
+      <h1 class="hero-title">
+        Smart Attendance for<br />
+        <span class="gradient-text">Modern Classrooms</span>
+      </h1>
+
+      <p class="hero-desc">
+        SMARTCURRICULUM uses dynamic, expiring QR codes to record attendance in seconds —
+        eliminating proxy marking with AI-powered analytics and real-time insights.
+      </p>
+
+      <div class="hero-cta">
+        <a href="login.html" class="btn btn-primary btn-xl" id="get-started-btn">
+          🚀 Get Started
+        </a>
+        <a href="#features" class="btn btn-ghost btn-xl">
+          Learn More ↓
+        </a>
+      </div>
+    </section>
+
+    <!-- ── Feature Cards ─────────────────────────────────────────── -->
+    <section class="features-section" id="features">
+      <div style="text-align:center;margin-bottom:48px">
+        <h2 class="hero-title" style="font-size:2rem">Why SMARTCURRICULUM?</h2>
+        <p class="hero-desc" style="margin:0 auto">
+          Built for colleges that take attendance seriously.
+        </p>
+      </div>
+      <div class="features-grid" id="features-grid">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+
+    <!-- ── How It Works ──────────────────────────────────────────── -->
+    <section class="features-section" style="padding-top:0">
+      <div style="text-align:center;margin-bottom:48px">
+        <h2 class="hero-title" style="font-size:2rem">How It Works</h2>
+      </div>
+      <div class="grid-3" id="steps-grid">
+        <!-- Injected by JS -->
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 SMARTCURRICULUM · Built with Supabase & OpenRouter AI · All rights reserved.</p>
+  </footer>
+
+  <!-- ── Scripts ────────────────────────────────────────────────── -->
+  <script src="config.js"></script>
+  <script type="module">
+    import { initThemeToggle } from './js/utils.js';
+    initThemeToggle('theme-toggle');
+
+    // Feature cards data
+    const features = [
+      { icon: '🔳', title: 'Dynamic QR Codes',      desc: 'QR codes refresh every 30 seconds, making it impossible to share screenshots for proxy attendance.' },
+      { icon: '🛡️', title: 'Anti-Proxy Detection',  desc: 'Token hashing, timestamp validation, and device fingerprinting prevent all forms of attendance fraud.' },
+      { icon: '📊', title: 'Real-Time Analytics',   desc: 'Live dashboards with Chart.js charts. See who\'s present the moment they scan.' },
+      { icon: '🤖', title: 'AI Insights',            desc: 'OpenRouter GPT-3.5 analyzes trends and flags at-risk students before it\'s too late.' },
+      { icon: '📱', title: 'Mobile First',           desc: 'Students scan from any smartphone. No app installation required — works in the browser.' },
+      { icon: '☁️', title: 'Supabase Backend',       desc: 'Serverless PostgreSQL with row-level security and real-time subscriptions.' },
+    ];
+
+    const steps = [
+      { num: '01', title: 'Teacher Starts Session', desc: 'Click "Start Attendance" and a rotating QR code appears on screen or projector.' },
+      { num: '02', title: 'Student Scans QR',        desc: 'Students open the app on their phone, tap "Scan QR", and point at the code.' },
+      { num: '03', title: 'Instant Verification',    desc: 'The server validates the token, timestamp, and device. Attendance is recorded immediately.' },
+    ];
+
+    const fg = document.getElementById('features-grid');
+    features.forEach(f => {
+      fg.insertAdjacentHTML('beforeend', `
+        <div class="feature-card">
+          <div class="feature-icon">${f.icon}</div>
+          <h3 class="feature-title">${f.title}</h3>
+          <p class="feature-desc">${f.desc}</p>
+        </div>
+      `);
+    });
+
+    const sg = document.getElementById('steps-grid');
+    steps.forEach(s => {
+      sg.insertAdjacentHTML('beforeend', `
+        <div class="card card-gradient" style="text-align:center;padding:36px 24px">
+          <div style="font-family:var(--font-display);font-size:3rem;font-weight:800;
+                      background:var(--gradient-brand);-webkit-background-clip:text;
+                      -webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px">
+            ${s.num}
+          </div>
+          <h3 class="feature-title">${s.title}</h3>
+          <p class="feature-desc">${s.desc}</p>
+        </div>
+      `);
+    });
+  </script>
+</body>
+</html>
