@@ -5,8 +5,7 @@
  * rich, actionable insights for the teacher dashboard.
  */
 
-// CONFIG is loaded as a global via <script> in each HTML file
-/* global CONFIG */
+import { CONFIG } from '../config.js';
 
 /* ─── Main Export ───────────────────────────────────────────────────────────── */
 

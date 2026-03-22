@@ -5,7 +5,7 @@
  * NEVER commit real keys to version control.
  */
 
-const CONFIG = {
+export const CONFIG = {
   // ── Supabase ────────────────────────────────────────────────────────────────
   // Get these from: https://supabase.com → Project Settings → API
   SUPABASE_URL: "https://dlniwkemnkfirgvhjhty.supabase.co",

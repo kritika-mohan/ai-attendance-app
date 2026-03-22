@@ -24,30 +24,51 @@ import { supabaseClient } from './supabaseClient.js';
  */
 export async function submitAttendance({ sessionId, timestamp, token, studentId, deviceId }) {
   try {
-    // Get current session JWT for authorization headers
-    const { data: { session } } = await supabaseClient.auth.getSession();
-
-    const response = await supabaseClient.functions.invoke('verify-token', {
-      body: { session_id: sessionId, timestamp, token, student_id: studentId, device_id: deviceId },
-      headers: {
-        Authorization: `Bearer ${session?.access_token}`,
-      },
-    });
-
-    if (response.error) {
-      return { success: false, message: response.error.message };
+    // 1. Client-side freshness check (35-second window)
+    const age = Date.now() - timestamp;
+    if (age > 35_000) {
+      return { success: false, message: 'QR code has expired. Ask your teacher to refresh it.' };
     }
 
-    const body = response.data;
-    return {
-      success: body?.success === true,
-      message: body?.message || 'Unknown response from server.',
-    };
+    // 2. Verify the session exists and is not expired
+    const { data: session, error: sessErr } = await supabaseClient
+      .from('sessions')
+      .select('session_id, expires_at')
+      .eq('session_id', sessionId)
+      .single();
+
+    if (sessErr || !session) {
+      return { success: false, message: 'Session not found. Ask your teacher to restart.' };
+    }
+    if (new Date(session.expires_at) < new Date()) {
+      return { success: false, message: 'This session has expired. Ask your teacher to start a new one.' };
+    }
+
+    // 3. Insert attendance record (DB UNIQUE constraint prevents duplicates)
+    const { error: insertErr } = await supabaseClient
+      .from('attendance')
+      .insert({
+        session_id: sessionId,
+        student_id: studentId,
+        device_id:  deviceId,
+        timestamp:  new Date().toISOString(),
+      });
+
+    if (insertErr) {
+      // Unique constraint violation = already marked
+      if (insertErr.code === '23505') {
+        return { success: false, message: 'Attendance already marked for this session.' };
+      }
+      return { success: false, message: insertErr.message };
+    }
+
+    return { success: true, message: 'Attendance recorded successfully!' };
   } catch (err) {
     console.error('[attendance] submitAttendance error:', err);
     return { success: false, message: 'Network error. Please try again.' };
   }
 }
+
 
 /* ─── Teacher: Session Attendance ───────────────────────────────────────────── */
 
