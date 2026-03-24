@@ -28,9 +28,10 @@ function generateJoinCode() {
  * Creates a new course and generates a join code.
  * @param {string} teacherId
  * @param {string} courseName
+ * @param {string} slot        - Time slot for this course
  * @returns {Promise<object>} Course record
  */
-export async function createCourse(teacherId, courseName) {
+export async function createCourse(teacherId, courseName, slot = 'General') {
   const joinCode = generateJoinCode();
 
   const { data, error } = await supabaseClient
@@ -38,6 +39,7 @@ export async function createCourse(teacherId, courseName) {
     .insert({
       teacher_id: teacherId,
       name:       courseName.trim(),
+      slot:       slot.trim(),
       join_code:  joinCode,
     })
     .select()
@@ -119,6 +121,7 @@ export async function getStudentEnrollments(studentId) {
       courses:course_id (
         id,
         name,
+        slot,
         join_code,
         teacher:teacher_id ( name )
       )

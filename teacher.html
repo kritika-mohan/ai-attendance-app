@@ -50,19 +50,6 @@
           </p>
         </div>
 
-        <!-- Slot Selection -->
-        <div class="form-group" style="margin-bottom:24px">
-          <label for="slot-input" class="form-label">Time Slot / Period</label>
-          <input type="text" id="slot-input" class="form-input" placeholder="e.g. 10:00 AM - 11:00 AM" list="slot-presets">
-          <datalist id="slot-presets">
-            <option value="09:00 AM - 10:00 AM">
-            <option value="10:00 AM - 11:00 AM">
-            <option value="11:00 AM - 12:00 PM">
-            <option value="01:00 PM - 02:00 PM">
-            <option value="02:00 PM - 03:00 PM">
-          </datalist>
-        </div>
-
         <div class="card" id="qr-panel">
           <div class="qr-wrapper" id="idle-state">
             <div style="text-align:center;padding:40px 0">
@@ -197,7 +184,7 @@
           courses = await getTeacherCourses(teacherProfile.id);
           const select = document.getElementById('course-select');
           select.innerHTML = '<option value="">Select a course…</option>' +
-            courses.map(c => `<option value="${c.id}">${c.name} (Code: ${c.join_code})</option>`).join('');
+            courses.map(c => `<option value="${c.id}">${c.name} (${c.slot || 'General'})</option>`).join('');
         } catch (err) {
           showToast('error', 'Failed to load courses.');
         }
@@ -206,9 +193,11 @@
       window.showCourseModal = async function() {
         const name = prompt('Enter Course Name (e.g. CS101 - Algorithms):');
         if (!name) return;
+        const slot = prompt('Enter Time Slot (e.g. 10:00 AM - 11:00 AM):', 'General');
+        if (slot === null) return;
 
         try {
-          await createCourse(teacherProfile.id, name);
+          await createCourse(teacherProfile.id, name, slot);
           showToast('success', 'Course created! Students can join using the code.');
           await loadCourses();
         } catch (err) {
@@ -219,13 +208,13 @@
       // ── Start Session ──
       window.startSession = async function() {
         const courseId = document.getElementById('course-select').value;
-        const slot     = document.getElementById('slot-input').value.trim() || 'General';
 
         if (!courseId) {
           showToast('error', 'Please select a course first.');
           return;
         }
         const courseObj = courses.find(c => c.id === courseId);
+        const slot      = courseObj.slot || 'General';
 
         try {
           document.getElementById('idle-state').classList.add('hidden');
