@@ -19,7 +19,21 @@ export async function requireAuth() {
     window.location.href = 'login.html';
     return null;
   }
-  const profile = await getUserProfile(session.user.id);
+
+  let profile = await getUserProfile(session.user.id);
+
+  // Fallback: If profile row is missing, use auth metadata
+  if (!profile) {
+    console.warn('[auth] Profile missing in requireAuth. Using metadata fallback.');
+    const meta = session.user.user_metadata || {};
+    profile = {
+      id:     session.user.id,
+      name:   meta.name || 'User',
+      role:   meta.role || 'student',
+      course: meta.course || 'General'
+    };
+  }
+
   return { user: session.user, profile };
 }
 
@@ -77,8 +91,28 @@ export async function loginUser(email, password) {
   if (error) throw new Error(error.message);
 
   // Fetch profile to determine role
-  const profile = await getUserProfile(data.user.id);
-  if (!profile) throw new Error('User profile not found. Please contact support.');
+  let profile = await getUserProfile(data.user.id);
+
+  // Fallback: If profile row is missing, check auth metadata and attempt to create it
+  if (!profile) {
+    console.warn('[auth] Profile missing for user. Attempting fallback...');
+    const meta = data.user.user_metadata || {};
+    profile = {
+      id:     data.user.id,
+      name:   meta.name || 'User',
+      role:   meta.role || 'student',
+      course: meta.course || 'General'
+    };
+
+    // Attempt to re-insert profile if it's missing (failsafe)
+    const { error: insErr } = await supabaseClient.from('users').insert(profile).select().single();
+    if (!insErr) {
+      console.log('[auth] Profile restored successfully.');
+    } else {
+      console.error('[auth] Failed to restore profile:', insErr.message);
+      // Even if insert fails (maybe RLS), we have the object to redirect
+    }
+  }
 
   // Redirect based on role
   redirectByRole(profile.role);
@@ -88,35 +122,23 @@ export async function loginUser(email, password) {
 /* ─── Register ──────────────────────────────────────────────────────────────── */
 
 /**
- * Creates a new Supabase auth user and inserts their profile row.
+ * Creates a new Supabase auth user.
+ * Note: Profile creation is handled by a database trigger (auth_trigger.sql).
  * @param {object} params
  */
 export async function registerUser({ name, email, password, role, course }) {
-  // 1. Create auth user
+  // 1. Create auth user with metadata (metadata is used by the database trigger)
   const { data, error } = await supabaseClient.auth.signUp({
     email: email.trim(),
     password,
-    options: { data: { name, role } },
+    options: {
+      data: { name, role, course }
+    },
   });
 
   if (error) throw new Error(error.message);
 
-  const userId = data.user?.id;
-  if (!userId) throw new Error('Registration failed – no user ID returned.');
-
-  // 2. Insert into public users table
-  const { error: profileError } = await supabaseClient
-    .from('users')
-    .insert({
-      id:     userId,
-      name:   name.trim(),
-      email:  email.trim().toLowerCase(),
-      role:   role.toLowerCase(),
-      course: course.trim(),
-    });
-
-  if (profileError) throw new Error(profileError.message);
-
+  // Return data.user even if session is null (due to email confirmation)
   return data.user;
 }
 

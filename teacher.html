@@ -37,7 +37,18 @@
       <!-- Left: QR Panel -->
       <div>
         <h1 class="section-title">Attendance Session</h1>
-        <p class="section-subtitle" id="session-course-label" style="margin-bottom:24px">Ready to start</p>
+        <p class="section-subtitle" id="session-course-label" style="margin-bottom:12px">Ready to start</p>
+
+        <!-- Course Selection -->
+        <div class="form-group" style="margin-bottom:24px">
+          <label for="course-select" class="form-label">Active Course</label>
+          <select id="course-select" class="form-select form-input">
+            <option value="">Select a course…</option>
+          </select>
+          <p style="font-size:0.75rem;color:var(--text-muted);margin-top:6px">
+            Don't see your course? <a href="#" onclick="showCourseModal()" style="color:var(--accent-primary)">Create New Course</a>
+          </p>
+        </div>
 
         <div class="card" id="qr-panel">
           <div class="qr-wrapper" id="idle-state">
@@ -146,109 +157,145 @@
     import { getSessionAttendance }               from './js/attendance.js';
     import { initThemeToggle, showToast, formatDate } from './js/utils.js';
     import { supabaseClient }                     from './js/supabaseClient.js';
+    import { getTeacherCourses, createCourse }    from './js/courseManager.js';
 
     initThemeToggle('theme-toggle');
     document.getElementById('logout-btn').addEventListener('click', logoutUser);
 
     let teacherProfile = null;
     let realtimeSub    = null;
+    let courses        = [];
 
     // ── Auth guard ──
     const overlay = document.getElementById('loading-overlay');
     overlay.classList.remove('hidden');
 
     const auth = await requireRole('teacher');
-    if (!auth) return;
+    if (auth) {
+      teacherProfile = auth.profile;
+      overlay.classList.add('hidden');
+      document.getElementById('teacher-name-nav').textContent = teacherProfile.name;
 
-    teacherProfile = auth.profile;
-    overlay.classList.add('hidden');
-    document.getElementById('teacher-name-nav').textContent = teacherProfile.name;
+      // Load courses
+      await loadCourses();
 
-    // ── Start Session ──
-    window.startSession = async function() {
-      try {
-        document.getElementById('idle-state').classList.add('hidden');
-        document.getElementById('active-state').classList.remove('hidden');
-        document.getElementById('live-badge').style.display = 'inline-flex';
-        document.getElementById('pct-pill').style.display   = 'flex';
+      async function loadCourses() {
+        try {
+          courses = await getTeacherCourses(teacherProfile.id);
+          const select = document.getElementById('course-select');
+          select.innerHTML = '<option value="">Select a course…</option>' +
+            courses.map(c => `<option value="${c.id}">${c.name} (Code: ${c.join_code})</option>`).join('');
+        } catch (err) {
+          showToast('error', 'Failed to load courses.');
+        }
+      }
 
-        const sessionId = await startQRSession(teacherProfile.id, teacherProfile.course, {
-          containerId: 'qr-code-container',
-          timerFillId: 'timer-fill',
-          timerTextId: 'timer-text',
-          sessionIdEl: document.getElementById('session-id-chip'),
-        });
+      window.showCourseModal = async function() {
+        const name = prompt('Enter Course Name (e.g. CS101 - Algorithms):');
+        if (!name) return;
 
-        document.getElementById('session-course-label').textContent =
-          `Course: ${teacherProfile.course} · Session active`;
+        try {
+          await createCourse(teacherProfile.id, name);
+          showToast('success', 'Course created! Students can join using the code.');
+          await loadCourses();
+        } catch (err) {
+          showToast('error', err.message);
+        }
+      };
 
-        // Subscribe to realtime attendance
-        subscribeToAttendance(sessionId);
+      // ── Start Session ──
+      window.startSession = async function() {
+        const courseId = document.getElementById('course-select').value;
+        if (!courseId) {
+          showToast('error', 'Please select a course first.');
+          return;
+        }
+        const courseObj = courses.find(c => c.id === courseId);
 
-        showToast('success', 'Session started! QR code is live.');
-      } catch (err) {
-        showToast('error', 'Failed to start session: ' + err.message);
-        document.getElementById('idle-state').classList.remove('hidden');
+        try {
+          document.getElementById('idle-state').classList.add('hidden');
+          document.getElementById('active-state').classList.remove('hidden');
+          document.getElementById('live-badge').style.display = 'inline-flex';
+          document.getElementById('pct-pill').style.display   = 'flex';
+
+          const sessionId = await startQRSession(teacherProfile.id, courseObj.name, courseId, {
+            containerId: 'qr-code-container',
+            timerFillId: 'timer-fill',
+            timerTextId: 'timer-text',
+            sessionIdEl: document.getElementById('session-id-chip'),
+          });
+
+          document.getElementById('session-course-label').textContent =
+            `Course: ${courseObj.name} · Session active`;
+
+          // Subscribe to realtime attendance
+          subscribeToAttendance(sessionId);
+
+          showToast('success', 'Session started! QR code is live.');
+        } catch (err) {
+          showToast('error', 'Failed to start session: ' + err.message);
+          document.getElementById('idle-state').classList.remove('hidden');
+          document.getElementById('active-state').classList.add('hidden');
+        }
+      };
+
+      // ── Stop Session ──
+      window.stopSession = function() {
+        stopQRSession();
+        if (realtimeSub) supabaseClient.removeChannel(realtimeSub);
+
         document.getElementById('active-state').classList.add('hidden');
-      }
-    };
+        document.getElementById('idle-state').classList.remove('hidden');
+        document.getElementById('live-badge').style.display = 'none';
+        document.getElementById('pct-pill').style.display   = 'none';
+        document.getElementById('session-course-label').textContent = 'Session ended';
+        showToast('info', 'Attendance session ended.');
+      };
 
-    // ── Stop Session ──
-    window.stopSession = function() {
-      stopQRSession();
-      if (realtimeSub) supabaseClient.removeChannel(realtimeSub);
+      // ── Realtime subscription ──
+      function subscribeToAttendance(sessionId) {
+        realtimeSub = supabaseClient
+          .channel(`teacher:${sessionId}`)
+          .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'attendance',
+            filter: `session_id=eq.${sessionId}`,
+          }, () => {
+            refreshLiveTable(sessionId);
+          })
+          .subscribe();
 
-      document.getElementById('active-state').classList.add('hidden');
-      document.getElementById('idle-state').classList.remove('hidden');
-      document.getElementById('live-badge').style.display = 'none';
-      document.getElementById('pct-pill').style.display   = 'none';
-      document.getElementById('session-course-label').textContent = 'Session ended';
-      showToast('info', 'Attendance session ended.');
-    };
-
-    // ── Realtime subscription ──
-    function subscribeToAttendance(sessionId) {
-      realtimeSub = supabaseClient
-        .channel(`teacher:${sessionId}`)
-        .on('postgres_changes', {
-          event: 'INSERT', schema: 'public', table: 'attendance',
-          filter: `session_id=eq.${sessionId}`,
-        }, () => {
-          refreshLiveTable(sessionId);
-        })
-        .subscribe();
-
-      // Initial load
-      refreshLiveTable(sessionId);
-    }
-
-    async function refreshLiveTable(sessionId) {
-      const records = await getSessionAttendance(sessionId);
-
-      const tbody = document.getElementById('live-tbody');
-      if (!records.length) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px">
-          Waiting for students to scan...</td></tr>`;
-      } else {
-        tbody.innerHTML = records.map(r => `
-          <tr>
-            <td><strong>${escHtml(r.users?.name ?? '—')}</strong></td>
-            <td>${escHtml(r.users?.course ?? '—')}</td>
-            <td style="font-size:0.82rem;color:var(--text-muted)">${formatDate(r.timestamp)}</td>
-            <td><span class="badge badge-success">✓ Present</span></td>
-          </tr>
-        `).join('');
+        // Initial load
+        refreshLiveTable(sessionId);
       }
 
-      // Update counters
-      document.getElementById('count-present').textContent = records.length;
-      // Total from DB (all students)
-      const { count } = await supabaseClient
-        .from('users').select('id', { count: 'exact', head: true }).eq('role', 'student');
-      const total = count ?? 0;
-      document.getElementById('count-total').textContent   = total;
-      document.getElementById('count-pct').textContent     =
-        total > 0 ? Math.round((records.length / total) * 100) + '%' : '0%';
+      async function refreshLiveTable(sessionId) {
+        const records = await getSessionAttendance(sessionId);
+
+        const tbody = document.getElementById('live-tbody');
+        if (!records.length) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px">
+            Waiting for students to scan...</td></tr>`;
+        } else {
+          tbody.innerHTML = records.map(r => `
+            <tr>
+              <td><strong>${escHtml(r.users?.name ?? '—')}</strong></td>
+              <td>${escHtml(r.users?.course ?? '—')}</td>
+              <td style="font-size:0.82rem;color:var(--text-muted)">${formatDate(r.timestamp)}</td>
+              <td><span class="badge badge-success">✓ Present</span></td>
+            </tr>
+          `).join('');
+        }
+
+        // Update counters
+        document.getElementById('count-present').textContent = records.length;
+        // Total from DB (all students)
+        const { count } = await supabaseClient
+          .from('users').select('id', { count: 'exact', head: true }).eq('role', 'student');
+        const total = count ?? 0;
+        document.getElementById('count-total').textContent   = total;
+        document.getElementById('count-pct').textContent     =
+          total > 0 ? Math.round((records.length / total) * 100) + '%' : '0%';
+      }
     }
 
     function escHtml(str) {

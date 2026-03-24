@@ -38,9 +38,18 @@
       <!-- Left: Scanner Panel -->
       <div>
         <h1 class="section-title">Scan Attendance QR</h1>
-        <p class="section-subtitle" style="margin-bottom:24px">
+        <p class="section-subtitle" style="margin-bottom:16px">
           Point your camera at the QR code displayed by your teacher.
         </p>
+
+        <!-- Join Course UI -->
+        <div class="card card-gradient" style="margin-bottom:24px; padding: 20px;">
+          <h3 style="font-size: 1rem; margin-bottom: 12px;">➕ Join a New Course</h3>
+          <div style="display:flex; gap:10px;">
+            <input type="text" id="join-code-input" class="form-input" placeholder="Enter Code (e.g. ABC123)" style="text-transform:uppercase">
+            <button class="btn btn-primary" onclick="joinCourse()">Join</button>
+          </div>
+        </div>
 
         <div class="card">
           <div class="scanner-container">
@@ -62,9 +71,15 @@
         </div>
       </div>
 
-      <!-- Right: Attendance Stats -->
+      <!-- Right: Enrollment & Stats -->
       <div>
-        <h2 class="section-title">My Attendance</h2>
+        <h2 class="section-title">My Courses</h2>
+        <div id="enrollment-list" style="margin-bottom: 24px; display: grid; gap: 12px;">
+           <!-- Injected by JS -->
+           <p style="color:var(--text-muted); font-size:0.9rem;">Join a course above to see your attendance stats.</p>
+        </div>
+
+        <h2 class="section-title">Attendance Overview</h2>
 
         <!-- Warning Banner (shown if below 75%) -->
         <div class="warning-banner hidden" id="warning-banner" style="margin-bottom:20px">
@@ -131,87 +146,133 @@
     import { startScanner, stopScanner, isScannerActive } from './js/qrScanner.js';
     import { getStudentAttendance, getStudentAttendanceStats } from './js/attendance.js';
     import { initThemeToggle, showToast, formatDateShort }  from './js/utils.js';
+    import { joinCourseByCode, getStudentEnrollments }     from './js/courseManager.js';
 
     initThemeToggle('theme-toggle');
     document.getElementById('logout-btn').addEventListener('click', logoutUser);
 
     let studentProfile = null;
+    let enrollments    = [];
 
     // ── Auth guard ──
     const overlay = document.getElementById('loading-overlay');
     overlay.classList.remove('hidden');
 
     const auth = await requireRole('student');
-    if (!auth) return;
+    if (auth) {
+      studentProfile = auth.profile;
+      overlay.classList.add('hidden');
+      document.getElementById('student-name-nav').textContent = studentProfile.name;
 
-    studentProfile = auth.profile;
-    overlay.classList.add('hidden');
-    document.getElementById('student-name-nav').textContent = studentProfile.name;
+      // Load Enrollments
+      await loadEnrollments();
 
-    // ── Expose refresh for scanner callback ──
-    window.refreshStudentStats = loadStats;
+      async function loadEnrollments() {
+        try {
+          enrollments = await getStudentEnrollments(studentProfile.id);
+          const list = document.getElementById('enrollment-list');
+          
+          if (!enrollments.length) {
+            list.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">You haven\'t joined any courses yet.</p>';
+          } else {
+            list.innerHTML = enrollments.map(e => `
+              <div class="card card-hover" style="padding:16px; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <h4 style="margin:0; font-size:1.05rem;">${e.courses.name}</h4>
+                  <p style="margin:4px 0 0; font-size:0.8rem; color:var(--text-muted);">Teacher: ${e.courses.teacher.name}</p>
+                </div>
+                <div style="text-align:right">
+                   <span class="badge badge-info">${e.courses.join_code}</span>
+                </div>
+              </div>
+            `).join('');
+          }
 
-    // ── Load stats ──
-    await loadStats();
-
-    async function loadStats() {
-      const stats   = await getStudentAttendanceStats(studentProfile.id);
-      const history = await getStudentAttendance(studentProfile.id);
-
-      // Stat cards
-      document.getElementById('stat-present').textContent = stats.present;
-      document.getElementById('stat-total').textContent   = stats.total;
-
-      // Progress bar
-      const bar   = document.getElementById('pct-bar');
-      const badge = document.getElementById('pct-badge');
-      bar.style.width = stats.pct + '%';
-      badge.textContent = stats.pct + '%';
-      badge.className   = 'badge ' + (stats.pct >= 75 ? 'badge-success' : 'badge-danger');
-
-      if (stats.pct < 60) { bar.classList.add('danger'); bar.classList.remove('warning'); }
-      else if (stats.pct < 75) { bar.classList.add('warning'); bar.classList.remove('danger'); }
-      else { bar.classList.remove('danger', 'warning'); }
-
-      // Warning banner
-      const warn = document.getElementById('warning-banner');
-      if (stats.pct < 75 && stats.total > 0) {
-        warn.classList.remove('hidden');
-        document.getElementById('warning-text').textContent =
-          `Your attendance is ${stats.pct}% — below the 75% minimum. You need to attend more classes to avoid being debarred.`;
-      } else {
-        warn.classList.add('hidden');
+          // Load stats for all courses combined for now
+          await loadStats();
+        } catch (err) {
+          showToast('error', 'Failed to load enrollments.');
+        }
       }
 
-      // History table
-      const tbody = document.getElementById('history-tbody');
-      const recent = history.slice(0, 15);
-      if (!recent.length) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:16px">No attendance records yet.</td></tr>`;
-      } else {
-        tbody.innerHTML = recent.map(r => `
-          <tr>
-            <td style="font-size:0.88rem">${formatDateShort(r.timestamp)}</td>
-            <td>${escHtml(r.sessions?.course ?? '—')}</td>
-            <td><span class="badge badge-success">Present</span></td>
-          </tr>
-        `).join('');
+      window.joinCourse = async function() {
+        const input = document.getElementById('join-code-input');
+        const code = input.value.trim();
+        if (!code) return;
+
+        try {
+          const course = await joinCourseByCode(studentProfile.id, code);
+          showToast('success', `Successfully joined ${course.name}!`);
+          input.value = '';
+          await loadEnrollments();
+        } catch (err) {
+          showToast('error', err.message);
+        }
+      };
+
+      // ── Expose refresh for scanner callback ──
+      window.refreshStudentStats = loadStats;
+
+      // ── Load stats ──
+      async function loadStats() {
+        const stats   = await getStudentAttendanceStats(studentProfile.id);
+        const history = await getStudentAttendance(studentProfile.id);
+
+        // Stat cards
+        document.getElementById('stat-present').textContent = stats.present;
+        document.getElementById('stat-total').textContent   = stats.total;
+
+        // Progress bar
+        const bar   = document.getElementById('pct-bar');
+        const badge = document.getElementById('pct-badge');
+        bar.style.width = stats.pct + '%';
+        badge.textContent = stats.pct + '%';
+        badge.className   = 'badge ' + (stats.pct >= 75 ? 'badge-success' : 'badge-danger');
+
+        if (stats.pct < 60) { bar.classList.add('danger'); bar.classList.remove('warning'); }
+        else if (stats.pct < 75) { bar.classList.add('warning'); bar.classList.remove('danger'); }
+        else { bar.classList.remove('danger', 'warning'); }
+
+        // Warning banner
+        const warn = document.getElementById('warning-banner');
+        if (stats.pct < 75 && stats.total > 0) {
+          warn.classList.remove('hidden');
+          document.getElementById('warning-text').textContent =
+            `Your attendance is ${stats.pct}% — below the 75% minimum. You need to attend more classes to avoid being debarred.`;
+        } else {
+          warn.classList.add('hidden');
+        }
+
+        // History table
+        const tbody = document.getElementById('history-tbody');
+        const recent = history.slice(0, 15);
+        if (!recent.length) {
+          tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:16px">No attendance records yet.</td></tr>`;
+        } else {
+          tbody.innerHTML = recent.map(r => `
+            <tr>
+              <td style="font-size:0.88rem">${formatDateShort(r.timestamp)}</td>
+              <td>${escHtml(r.sessions?.course ?? '—')}</td>
+              <td><span class="badge badge-success">Present</span></td>
+            </tr>
+          `).join('');
+        }
       }
+
+      // ── Scanner toggle ──
+      window.toggleScanner = function() {
+        const qrReader = document.getElementById('qr-reader');
+        if (isScannerActive()) {
+          stopScanner();
+          qrReader.style.display = 'none';
+          document.getElementById('scan-result').style.display = 'none';
+        } else {
+          qrReader.style.display = 'block';
+          document.getElementById('scan-result').style.display = 'none';
+          startScanner('qr-reader', studentProfile.id);
+        }
+      };
     }
-
-    // ── Scanner toggle ──
-    window.toggleScanner = function() {
-      const qrReader = document.getElementById('qr-reader');
-      if (isScannerActive()) {
-        stopScanner();
-        qrReader.style.display = 'none';
-        document.getElementById('scan-result').style.display = 'none';
-      } else {
-        qrReader.style.display = 'block';
-        document.getElementById('scan-result').style.display = 'none';
-        startScanner('qr-reader', studentProfile.id);
-      }
-    };
 
     function escHtml(str) {
       return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');

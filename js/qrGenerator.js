@@ -69,10 +69,11 @@ function renderQR(qrData, containerId = 'qr-code-container') {
 /**
  * Creates a new session row in Supabase for the teacher.
  * @param {string} teacherId
- * @param {string} course
+ * @param {string} courseName
+ * @param {string} courseId  - The specific course UUID (optional)
  * @returns {Promise<object>} session row
  */
-async function createSession(teacherId, course) {
+async function createSession(teacherId, courseName, courseId = null) {
   const sessionId = generateSessionId();
   const now       = new Date();
   const expiresAt = new Date(now.getTime() + QR_REFRESH_MS + 5000); // slight grace
@@ -82,7 +83,8 @@ async function createSession(teacherId, course) {
     .insert({
       session_id:  sessionId,
       teacher_id:  teacherId,
-      course:      course,
+      course:      courseName,
+      course_id:   courseId,
       created_at:  now.toISOString(),
       expires_at:  expiresAt.toISOString(),
     })
@@ -136,10 +138,11 @@ function startCountdown(seconds, fillEl, textEl, onExpire) {
  * Generates the first QR immediately, then refreshes every 30 seconds.
  *
  * @param {string} teacherId
- * @param {string} course
+ * @param {string} courseName
+ * @param {string} courseId  - Specific course UUID
  * @param {object} uiRefs   - { containerId, timerFillId, timerTextId, sessionIdEl }
  */
-export async function startQRSession(teacherId, course, uiRefs = {}) {
+export async function startQRSession(teacherId, courseName, courseId = null, uiRefs = {}) {
   const {
     containerId  = 'qr-code-container',
     timerFillId  = 'timer-fill',
@@ -148,7 +151,7 @@ export async function startQRSession(teacherId, course, uiRefs = {}) {
   } = uiRefs;
 
   // Create initial session in DB
-  currentSession = await createSession(teacherId, course);
+  currentSession = await createSession(teacherId, courseName, courseId);
   if (sessionIdEl) sessionIdEl.textContent = currentSession.session_id.slice(0, 8) + '…';
 
   /** Inner function that builds and displays one QR cycle */

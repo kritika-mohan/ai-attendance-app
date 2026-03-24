@@ -123,14 +123,18 @@ export async function getTeacherSessions(teacherId) {
 
 /**
  * Gets all attendance across all sessions for a teacher's students,
- * grouped by student. Used for the dashboard analytics.
+ * optionally filtered by a specific course.
  * @param {string} teacherId
+ * @param {string} courseId  - Specific course UUID (optional)
  * @returns {Promise<Array>}
  */
-export async function getTeacherAttendanceSummary(teacherId) {
-  // Get all sessions for this teacher
-  const sessions = await getTeacherSessions(teacherId);
-  if (!sessions.length) return [];
+export async function getTeacherAttendanceSummary(teacherId, courseId = null) {
+  // Get all sessions for this teacher/course
+  let query = supabaseClient.from('sessions').select('session_id').eq('teacher_id', teacherId);
+  if (courseId) query = query.eq('course_id', courseId);
+
+  const { data: sessions, error: sessErr } = await query;
+  if (sessErr || !sessions.length) return [];
 
   const sessionIds = sessions.map(s => s.session_id);
 
@@ -150,11 +154,18 @@ export async function getTeacherAttendanceSummary(teacherId) {
     return [];
   }
 
-  // Get all enrolled students (same course)
-  const { data: allStudents } = await supabaseClient
-    .from('users')
-    .select('id, name, email, course')
-    .eq('role', 'student');
+  // Get all enrolled students for this course (or all if none)
+  let studentQuery = supabaseClient.from('users').select('id, name, email, course').eq('role', 'student');
+  if (courseId) {
+    const { data: enrolledStudents } = await supabaseClient
+      .from('enrollments')
+      .select('student_id, users:student_id ( id, name, email, course )')
+      .eq('course_id', courseId);
+    allStudents = (enrolledStudents ?? []).map(e => e.users);
+  } else {
+    const { data: all } = await studentQuery;
+    allStudents = all ?? [];
+  }
 
   // Build summary map
   const totalSessions = sessions.length;
@@ -211,15 +222,16 @@ export async function getStudentAttendance(studentId) {
 }
 
 /**
- * Calculates attendance percentage for a student across all sessions.
+ * Calculates attendance percentage for a student, optionally filtered by course.
  * @param {string} studentId
+ * @param {string} courseId  - Specific course UUID (optional)
  * @returns {Promise<{present: number, total: number, pct: number}>}
  */
-export async function getStudentAttendanceStats(studentId) {
-  // Total sessions ever created
-  const { count: totalSessions } = await supabaseClient
-    .from('sessions')
-    .select('session_id', { count: 'exact', head: true });
+export async function getStudentAttendanceStats(studentId, courseId = null) {
+  // Total sessions created
+  let totalQuery = supabaseClient.from('sessions').select('session_id', { count: 'exact', head: true });
+  if (courseId) totalQuery = totalQuery.eq('course_id', courseId);
+  const { count: totalSessions } = await totalQuery;
 
   const records = await getStudentAttendance(studentId);
 

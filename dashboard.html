@@ -39,6 +39,9 @@
         <p class="section-subtitle" id="teacher-course-label">Loading…</p>
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <select id="course-filter" class="form-select form-input" style="min-width: 180px;">
+          <option value="">All Courses</option>
+        </select>
         <button class="btn btn-ghost btn-sm" id="refresh-btn" onclick="refreshDashboard()">
           🔄 Refresh
         </button>
@@ -154,6 +157,7 @@
     import { requireRole, logoutUser } from './js/auth.js';
     import { initDashboard }           from './js/dashboard.js';
     import { initThemeToggle }         from './js/utils.js';
+    import { getTeacherCourses }       from './js/courseManager.js';
 
     initThemeToggle('theme-toggle');
     document.getElementById('logout-btn').addEventListener('click', logoutUser);
@@ -165,29 +169,44 @@
     overlay.classList.remove('hidden');
 
     const auth = await requireRole('teacher');
-    if (!auth) return;
+    if (auth) {
+      teacherProfile = auth.profile;
+      overlay.classList.add('hidden');
+      document.getElementById('teacher-course-label').textContent =
+        `Analytics for Teacher: ${teacherProfile.name}`;
 
-    teacherProfile = auth.profile;
-    overlay.classList.add('hidden');
-    document.getElementById('teacher-course-label').textContent =
-      `Course: ${teacherProfile.course} · Teacher: ${teacherProfile.name}`;
+      // Load courses for filter
+      const courses = await getTeacherCourses(teacherProfile.id);
+      const filter = document.getElementById('course-filter');
+      filter.innerHTML = '<option value="">All Courses</option>' +
+        courses.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
-    // Get the session_id from URL params if linked from teacher page
-    const params    = new URLSearchParams(window.location.search);
-    const sessionId = params.get('session') ?? null;
+      // Get initial params
+      const params    = new URLSearchParams(window.location.search);
+      const sessionId = params.get('session') ?? null;
+      let activeCourseId = params.get('course') ?? '';
+      
+      if (activeCourseId) filter.value = activeCourseId;
 
-    // ── Init Dashboard ──
-    await initDashboard(teacherProfile.id, sessionId);
+      // ── Init Dashboard ──
+      await initDashboard(teacherProfile.id, sessionId, activeCourseId);
 
-    // ── Refresh ──
-    window.refreshDashboard = async function() {
-      const btn = document.getElementById('refresh-btn');
-      btn.disabled  = true;
-      btn.innerHTML = '<span class="spinner"></span>';
-      await initDashboard(teacherProfile.id, sessionId);
-      btn.disabled  = false;
-      btn.innerHTML = '🔄 Refresh';
-    };
+      // Handle filter change
+      filter.addEventListener('change', async () => {
+         activeCourseId = filter.value;
+         await initDashboard(teacherProfile.id, sessionId, activeCourseId);
+      });
+
+      // ── Refresh ──
+      window.refreshDashboard = async function() {
+        const btn = document.getElementById('refresh-btn');
+        btn.disabled  = true;
+        btn.innerHTML = '<span class="spinner"></span>';
+        await initDashboard(teacherProfile.id, sessionId, activeCourseId);
+        btn.disabled  = false;
+        btn.innerHTML = '🔄 Refresh';
+      };
+    }
   </script>
 </body>
 </html>

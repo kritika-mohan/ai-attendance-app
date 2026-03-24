@@ -28,11 +28,12 @@ const CHART_DEFAULTS = {
  * Initialises the dashboard for a teacher.
  * @param {string} teacherId
  * @param {string} latestSessionId  - The most recently started session
+ * @param {string} courseId         - Filter by a specific course (optional)
  */
-export async function initDashboard(teacherId, latestSessionId) {
+export async function initDashboard(teacherId, latestSessionId, courseId = null) {
   showLoading(true);
 
-  const summary = await getTeacherAttendanceSummary(teacherId);
+  const summary = await getTeacherAttendanceSummary(teacherId, courseId);
   tableRows = summary;
 
   renderStatCards(summary);
@@ -223,7 +224,7 @@ function subscribeRealtime(teacherId, sessionId) {
       { event: 'INSERT', schema: 'public', table: 'attendance', filter: `session_id=eq.${sessionId}` },
       async () => {
         // Refresh the full summary
-        const summary = await getTeacherAttendanceSummary(teacherId);
+        const summary = await getTeacherAttendanceSummary(teacherId, courseId);
         tableRows = summary;
         renderStatCards(summary);
         renderBarChart(summary);
