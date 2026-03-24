@@ -22,9 +22,9 @@ export async function requireAuth() {
 
   let profile = await getUserProfile(session.user.id);
 
-  // Fallback: If profile row is missing, use auth metadata
+  // Fallback: If profile row is missing, use auth metadata and auto-provision
   if (!profile) {
-    console.warn('[auth] Profile missing in requireAuth. Using metadata fallback.');
+    console.warn('[auth] Profile missing in requireAuth. Auto-provisioning from metadata...');
     const meta = session.user.user_metadata || {};
     profile = {
       id:     session.user.id,
@@ -32,6 +32,14 @@ export async function requireAuth() {
       role:   meta.role || 'student',
       course: meta.course || 'General'
     };
+
+    // Force an upsert to the database so RLS policies based on role/id work
+    try {
+      await supabaseClient.from('users').upsert(profile);
+      console.log('[auth] Profile auto-provisioned successfully.');
+    } catch (e) {
+      console.error('[auth] Profile auto-provisioning failed:', e.message);
+    }
   }
 
   return { user: session.user, profile };
