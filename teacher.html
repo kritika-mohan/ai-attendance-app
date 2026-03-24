@@ -50,6 +50,19 @@
           </p>
         </div>
 
+        <!-- Slot Selection -->
+        <div class="form-group" style="margin-bottom:24px">
+          <label for="slot-input" class="form-label">Time Slot / Period</label>
+          <input type="text" id="slot-input" class="form-input" placeholder="e.g. 10:00 AM - 11:00 AM" list="slot-presets">
+          <datalist id="slot-presets">
+            <option value="09:00 AM - 10:00 AM">
+            <option value="10:00 AM - 11:00 AM">
+            <option value="11:00 AM - 12:00 PM">
+            <option value="01:00 PM - 02:00 PM">
+            <option value="02:00 PM - 03:00 PM">
+          </datalist>
+        </div>
+
         <div class="card" id="qr-panel">
           <div class="qr-wrapper" id="idle-state">
             <div style="text-align:center;padding:40px 0">
@@ -206,6 +219,8 @@
       // ── Start Session ──
       window.startSession = async function() {
         const courseId = document.getElementById('course-select').value;
+        const slot     = document.getElementById('slot-input').value.trim() || 'General';
+
         if (!courseId) {
           showToast('error', 'Please select a course first.');
           return;
@@ -218,7 +233,7 @@
           document.getElementById('live-badge').style.display = 'inline-flex';
           document.getElementById('pct-pill').style.display   = 'flex';
 
-          const sessionId = await startQRSession(teacherProfile.id, courseObj.name, courseId, {
+          const sessionId = await startQRSession(teacherProfile.id, courseObj.name, courseId, slot, {
             containerId: 'qr-code-container',
             timerFillId: 'timer-fill',
             timerTextId: 'timer-text',
@@ -226,7 +241,7 @@
           });
 
           document.getElementById('session-course-label').textContent =
-            `Course: ${courseObj.name} · Session active`;
+            `Course: ${courseObj.name} (${slot}) · Session active`;
 
           // Subscribe to realtime attendance
           subscribeToAttendance(sessionId);

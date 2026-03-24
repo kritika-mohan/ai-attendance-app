@@ -242,6 +242,64 @@ export async function getStudentAttendanceStats(studentId, courseId = null) {
   return { present, total, pct };
 }
 
+/**
+ * Generates a matrix of [Student] x [Session Date/Slot] for a detailed report.
+ * Returns { sessions: Array, students: Array }
+ * @param {string} courseId
+ */
+export async function getDetailedAttendanceReport(courseId) {
+  // 1. Get all sessions for this course
+  const { data: sessions, error: sessErr } = await supabaseClient
+    .from('sessions')
+    .select('session_id, created_at, slot')
+    .eq('course_id', courseId)
+    .order('created_at', { ascending: true });
+
+  if (sessErr) throw sessErr;
+  if (!sessions?.length) return { sessions: [], students: [] };
+
+  // 2. Get all enrolled students
+  const { data: enrolledStudents, error: enrollErr } = await supabaseClient
+    .from('enrollments')
+    .select('student_id, users:student_id ( id, name, email )')
+    .eq('course_id', courseId);
+
+  if (enrollErr) throw enrollErr;
+
+  const students = (enrolledStudents ?? []).map(e => e.users);
+
+  // 3. Get all attendance for these sessions
+  const sessionIds = sessions.map(s => s.session_id);
+  const { data: attendance, error: attErr } = await supabaseClient
+    .from('attendance')
+    .select('session_id, student_id')
+    .in('session_id', sessionIds);
+
+  if (attErr) throw attErr;
+
+  // 4. Build lookup map
+  const attendanceMap = {}; // "studentId:sessionId" -> true
+  (attendance ?? []).forEach(a => {
+    attendanceMap[`${a.student_id}:${a.session_id}`] = true;
+  });
+
+  // 5. Structure the rows
+  const rows = students.map(s => {
+    const sessionStatus = sessions.map(sess => ({
+      sessionId: sess.session_id,
+      present:   !!attendanceMap[`${s.id}:${sess.session_id}`]
+    }));
+    return {
+      id:      s.id,
+      name:    s.name,
+      email:   s.email,
+      history: sessionStatus
+    };
+  });
+
+  return { sessions, students: rows };
+}
+
 /* ─── Export CSV ────────────────────────────────────────────────────────────── */
 
 /**

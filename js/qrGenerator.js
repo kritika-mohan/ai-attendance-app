@@ -71,9 +71,10 @@ function renderQR(qrData, containerId = 'qr-code-container') {
  * @param {string} teacherId
  * @param {string} courseName
  * @param {string} courseId  - The specific course UUID (optional)
+ * @param {string} slot      - Time slot (optional)
  * @returns {Promise<object>} session row
  */
-async function createSession(teacherId, courseName, courseId = null) {
+async function createSession(teacherId, courseName, courseId = null, slot = 'General') {
   const sessionId = generateSessionId();
   const now       = new Date();
   const expiresAt = new Date(now.getTime() + QR_REFRESH_MS + 5000); // slight grace
@@ -85,6 +86,7 @@ async function createSession(teacherId, courseName, courseId = null) {
       teacher_id:  teacherId,
       course:      courseName,
       course_id:   courseId,
+      slot:        slot,
       created_at:  now.toISOString(),
       expires_at:  expiresAt.toISOString(),
     })
@@ -140,9 +142,10 @@ function startCountdown(seconds, fillEl, textEl, onExpire) {
  * @param {string} teacherId
  * @param {string} courseName
  * @param {string} courseId  - Specific course UUID
+ * @param {string} slot      - Time slot name
  * @param {object} uiRefs   - { containerId, timerFillId, timerTextId, sessionIdEl }
  */
-export async function startQRSession(teacherId, courseName, courseId = null, uiRefs = {}) {
+export async function startQRSession(teacherId, courseName, courseId = null, slot = 'General', uiRefs = {}) {
   const {
     containerId  = 'qr-code-container',
     timerFillId  = 'timer-fill',
@@ -151,7 +154,7 @@ export async function startQRSession(teacherId, courseName, courseId = null, uiR
   } = uiRefs;
 
   // Create initial session in DB
-  currentSession = await createSession(teacherId, courseName, courseId);
+  currentSession = await createSession(teacherId, courseName, courseId, slot);
   if (sessionIdEl) sessionIdEl.textContent = currentSession.session_id.slice(0, 8) + '…';
 
   /** Inner function that builds and displays one QR cycle */

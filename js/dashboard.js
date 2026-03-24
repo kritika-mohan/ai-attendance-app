@@ -6,7 +6,7 @@
  */
 
 import { supabaseClient }         from './supabaseClient.js';
-import { getTeacherAttendanceSummary, exportCSV } from './attendance.js';
+import { getTeacherAttendanceSummary, getDetailedAttendanceReport, exportCSV } from './attendance.js';
 import { generateInsights }       from './aiInsights.js';
 
 let barChart      = null;
@@ -40,6 +40,13 @@ export async function initDashboard(teacherId, latestSessionId, courseId = null)
   renderBarChart(summary);
   renderDoughnutChart(summary);
   renderTable(summary);
+
+  if (courseId) {
+    const matrixData = await getDetailedAttendanceReport(courseId);
+    renderDetailedMatrix(matrixData);
+  } else {
+    clearMatrix();
+  }
 
   if (latestSessionId) {
     subscribeRealtime(teacherId, latestSessionId);
@@ -202,6 +209,62 @@ function renderTable(summary) {
       </td>
     </tr>
   `).join('');
+}
+
+/* ─── Detailed Matrix ──────────────────────────────────────────────────────── */
+
+function renderDetailedMatrix({ sessions, students }) {
+  const container = document.getElementById('matrix-container');
+  if (!container) return;
+
+  if (!sessions.length) {
+    container.innerHTML = '<p class="text-muted">No sessions found for this course.</p>';
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'sc-table matrix-table';
+
+  // Header: Date & Slot
+  const thead = document.createElement('thead');
+  const hRow = document.createElement('tr');
+  hRow.innerHTML = '<th>Student</th>';
+  sessions.forEach(s => {
+    const dateStr = new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    hRow.innerHTML += `
+      <th style="min-width: 80px; text-align: center; font-size: 0.75rem;">
+        <div>${dateStr}</div>
+        <div style="font-weight: 400; color: var(--text-muted);">${s.slot}</div>
+      </th>
+    `;
+  });
+  thead.appendChild(hRow);
+  table.appendChild(thead);
+
+  // Body: Students x Status
+  const tbody = document.createElement('tbody');
+  students.forEach(s => {
+    const bRow = document.createElement('tr');
+    bRow.innerHTML = `<td><div style="font-weight:600">${s.name}</div><div style="font-size:0.75rem;color:var(--text-muted)">${s.email}</div></td>`;
+    s.history.forEach(h => {
+      bRow.innerHTML += `
+        <td style="text-align: center; font-size: 1.2rem;">
+          ${h.present ? '<span style="color:var(--success)">✅</span>' : '<span style="color:var(--danger)">❌</span>'}
+        </td>
+      `;
+    });
+    tbody.appendChild(bRow);
+  });
+  table.appendChild(tbody);
+
+  container.innerHTML = '';
+  container.appendChild(table);
+  document.getElementById('matrix-section').classList.remove('hidden');
+}
+
+function clearMatrix() {
+  const section = document.getElementById('matrix-section');
+  if (section) section.classList.add('hidden');
 }
 
 /* ─── Realtime Subscription ─────────────────────────────────────────────────── */
