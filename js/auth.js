@@ -66,11 +66,11 @@ export async function getUserProfile(userId) {
     .from('users')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle(); // Returns null safely if 0 rows found
 
   if (error) {
     console.error('[auth] getUserProfile error:', error.message);
-    return null;
+    throw error;
   }
   return data;
 }
@@ -91,11 +91,16 @@ export async function loginUser(email, password) {
   if (error) throw new Error(error.message);
 
   // Fetch profile to determine role
-  let profile = await getUserProfile(data.user.id);
+  let profile = null;
+  try {
+    profile = await getUserProfile(data.user.id);
+  } catch (err) {
+    console.warn('[auth] Soft error fetching profile:', err.message);
+  }
 
   // Fallback: If profile row is missing, check auth metadata and attempt to create it
   if (!profile) {
-    console.warn('[auth] Profile missing for user. Attempting fallback...');
+    console.info('[auth] Profile missing for user. Restoring from metadata...');
     const meta = data.user.user_metadata || {};
     profile = {
       id:     data.user.id,
@@ -104,13 +109,14 @@ export async function loginUser(email, password) {
       course: meta.course || 'General'
     };
 
-    // Attempt to re-insert profile if it's missing (failsafe)
-    const { error: insErr } = await supabaseClient.from('users').insert(profile).select().single();
-    if (!insErr) {
-      console.log('[auth] Profile restored successfully.');
-    } else {
-      console.error('[auth] Failed to restore profile:', insErr.message);
-      // Even if insert fails (maybe RLS), we have the object to redirect
+    // Attempt to re-insert/update profile if it's missing (failsafe)
+    // We use .upsert() + ignore errors to ensure the user can still get in
+    try {
+      const { error: upsError } = await supabaseClient.from('users').upsert(profile);
+      if (upsError) console.error('[auth] Upsert failsafe failed:', upsError.message);
+      else console.log('[auth] Profile restored/verified successfully.');
+    } catch (e) {
+      console.error('[auth] Upsert fatal error:', e);
     }
   }
 
