@@ -16,37 +16,48 @@ import { CONFIG } from '../config.js';
  * @returns {Promise<string>}        - Plain-text insights from the model
  */
 export async function generateInsights(attendanceSummary) {
+  if (!CONFIG.OPENROUTER_API_KEY) {
+    throw new Error('OpenRouter API key not configured.');
+  }
+
   const prompt = buildPrompt(attendanceSummary);
 
-  const response = await fetch(CONFIG.INSIGHTS_ENDPOINT, {
+  const response = await fetch(CONFIG.OPENROUTER_URL, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
+      'HTTP-Referer':  window.location.origin,
+      'X-Title':       CONFIG.APP_NAME,
     },
     body: JSON.stringify({
+      model:  CONFIG.OPENROUTER_MODEL,
       messages: [
         {
-          role: 'system',
+          role:    'system',
           content: `You are an intelligent academic analytics assistant for ${CONFIG.APP_NAME}.
 Your job is to analyze student attendance data and provide concise, actionable insights.
-Format your response in clear sections:
-1. 📊 **Overview** – Brief summary of overall attendance health
-2. ⚠️  **At-Risk Students** – Students below 75% with specific recommendations
-3. 📈 **Trends & Observations** – Notable patterns in the data
-4. 💡 **Recommendations** – Concrete actions for the teacher
+DO NOT use markdown formatting like **bold** or ## headers.
+Format your response in plain text with clear numbered sections:
+1. 📊 Overview – Brief summary of overall attendance health
+2. ⚠️ At-Risk Students – Students below 75% with specific recommendations
+3. 📈 Trends & Observations – Notable patterns in the data
+4. 💡 Recommendations – Concrete actions for the teacher
 Keep your response under 400 words and use emojis to make it scannable.`,
         },
         {
-          role: 'user',
+          role:    'user',
           content: prompt,
         },
       ],
+      temperature: 0.7,
+      max_tokens:  600,
     }),
   });
 
   if (!response.ok) {
     const errBody = await response.text();
-    throw new Error(`AI Service error ${response.status}: ${errBody}`);
+    throw new Error(`OpenRouter API error ${response.status}: ${errBody}`);
   }
 
   const data    = await response.json();
