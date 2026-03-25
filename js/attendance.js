@@ -33,7 +33,7 @@ export async function submitAttendance({ sessionId, timestamp, token, studentId,
     // 2. Verify the session exists and is not expired
     const { data: session, error: sessErr } = await supabaseClient
       .from('sessions')
-      .select('session_id, expires_at')
+      .select('session_id, expires_at, course_id')
       .eq('session_id', sessionId)
       .single();
 
@@ -42,6 +42,23 @@ export async function submitAttendance({ sessionId, timestamp, token, studentId,
     }
     if (new Date(session.expires_at) < new Date()) {
       return { success: false, message: 'This session has expired. Ask your teacher to start a new one.' };
+    }
+
+    // 2.5 Check enrollment if it's a course-specific session
+    if (session.course_id) {
+      const { data: enrollment, error: enrollErr } = await supabaseClient
+        .from('enrollments')
+        .select('id')
+        .eq('course_id', session.course_id)
+        .eq('student_id', studentId)
+        .maybeSingle();
+
+      if (enrollErr || !enrollment) {
+        return { 
+          success: false, 
+          message: 'You are not enrolled in this course. Please join the course using the code provided by your teacher first.' 
+        };
+      }
     }
 
     // 3. Insert attendance record (DB UNIQUE constraint prevents duplicates)
