@@ -102,7 +102,7 @@ export async function getSessionAttendance(sessionId) {
       timestamp,
       device_id,
       student_id,
-      users:student_id ( name, email, course )
+      users ( name, email, course )
     `)
     .eq('session_id', sessionId)
     .order('timestamp', { ascending: true });
@@ -111,6 +111,7 @@ export async function getSessionAttendance(sessionId) {
     console.error('[attendance] getSessionAttendance:', error.message);
     return [];
   }
+  console.log('[attendance] getSessionAttendance data:', data);
   return data ?? [];
 }
 
@@ -210,6 +211,52 @@ export async function getTeacherAttendanceSummary(teacherId, courseId = null) {
   return Object.values(studentMap).map(s => ({
     ...s,
     pct: totalSessions > 0 ? Math.round((s.present / totalSessions) * 100) : 0,
+  }));
+}
+
+/**
+ * Fetches all attendance records for a teacher across all courses for today.
+ * @param {string} teacherId
+ * @returns {Promise<Array>}
+ */
+export async function getTodaysAttendance(teacherId) {
+  const today = new Date().toISOString().split('T')[0];
+
+  // 1. Get all sessions for this teacher today
+  const { data: sessions, error: sessErr } = await supabaseClient
+    .from('sessions')
+    .select('session_id, course')
+    .eq('teacher_id', teacherId)
+    .gte('created_at', `${today}T00:00:00`)
+    .lte('created_at', `${today}T23:59:59`);
+
+  if (sessErr || !sessions?.length) return [];
+
+  const sessionIds = sessions.map(s => s.session_id);
+
+  // 2. Get all attendance records for those sessions
+  const { data, error } = await supabaseClient
+    .from('attendance')
+    .select(`
+      id,
+      timestamp,
+      student_id,
+      session_id,
+      users:student_id ( name, email, course )
+    `)
+    .in('session_id', sessionIds)
+    .order('timestamp', { ascending: false });
+
+  if (error) {
+    console.error('[attendance] getTodaysAttendance:', error.message);
+    return [];
+  }
+
+  // 3. Map session info back to records
+  const sessionMap = Object.fromEntries(sessions.map(s => [s.session_id, s.course]));
+  return (data ?? []).map(r => ({
+    ...r,
+    course_name: sessionMap[r.session_id] || 'General'
   }));
 }
 
