@@ -8,11 +8,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (!req.body) {
+    return res.status(400).json({ error: 'Missing request body' });
+  }
   const { messages, attendanceSummary } = req.body;
   const apiKey = process.env.OPENROUTER_API_KEY;
 
   if (!apiKey) {
-    return res.status(500).json({ error: 'OpenRouter API key not configured on server.' });
+    console.error('SERVER ERROR: OPENROUTER_API_KEY is missing.');
+    return res.status(500).json({ 
+      error: 'OpenRouter API key not configured on server.',
+      detail: 'Please ensure OPENROUTER_API_KEY is set in Vercel Environment Variables.'
+    });
   }
 
   try {
