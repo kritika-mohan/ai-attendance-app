@@ -45,7 +45,17 @@
           <select id="course-select" class="form-select form-input">
             <option value="">Select a course…</option>
           </select>
-          <p style="font-size:0.75rem;color:var(--text-muted);margin-top:6px">
+
+          <!-- Join Code Display -->
+          <div id="join-code-display" class="hidden" style="margin-top:12px; padding:12px; background:rgba(255,255,255,0.04); border-radius:8px; border:1px dashed var(--accent-primary)">
+            <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px">Student Join Code</div>
+            <div style="display:flex; justify-content:space-between; align-items:center">
+              <span id="active-join-code" style="font-family:var(--font-mono); font-size:1.4rem; font-weight:700; color:var(--accent-primary)">------</span>
+              <button class="btn btn-ghost btn-sm" onclick="copyJoinCode()" style="padding:4px 8px; font-size:0.75rem">📋 Copy</button>
+            </div>
+          </div>
+
+          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px">
             Don't see your course? <a href="#" onclick="showCourseModal()" style="color:var(--accent-primary)">Create New Course</a>
           </p>
         </div>
@@ -190,6 +200,30 @@
         }
       }
 
+      // ── Select listener ──
+      document.getElementById('course-select').addEventListener('change', (e) => {
+        const courseId = e.target.value;
+        const display = document.getElementById('join-code-display');
+        const codeText = document.getElementById('active-join-code');
+
+        if (!courseId) {
+          display.classList.add('hidden');
+          return;
+        }
+
+        const course = courses.find(c => c.id === courseId);
+        if (course) {
+          codeText.textContent = course.join_code;
+          display.classList.remove('hidden');
+        }
+      });
+
+      window.copyJoinCode = function() {
+        const code = document.getElementById('active-join-code').textContent;
+        navigator.clipboard.writeText(code);
+        showToast('info', 'Code copied to clipboard!');
+      };
+
       window.showCourseModal = async function() {
         const name = prompt('Enter Course Name (e.g. CS101 - Algorithms):');
         if (!name) return;
@@ -197,8 +231,8 @@
         if (slot === null) return;
 
         try {
-          await createCourse(teacherProfile.id, name, slot);
-          showToast('success', 'Course created! Students can join using the code.');
+          const newCourse = await createCourse(teacherProfile.id, name, slot);
+          showToast('success', `Course created! Students can join using code: ${newCourse.join_code}`);
           await loadCourses();
         } catch (err) {
           showToast('error', err.message);
