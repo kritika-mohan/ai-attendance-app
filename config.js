@@ -13,7 +13,7 @@ export const CONFIG = {
 
   // ── OpenRouter AI ───────────────────────────────────────────────────────────
   // Get your key from: https://openrouter.ai/keys
-  OPENROUTER_API_KEY: "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",
+  OPENROUTER_API_KEY: "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",
   OPENROUTER_MODEL: "openai/gpt-3.5-turbo",
   OPENROUTER_URL: "https://openrouter.ai/api/v1/chat/completions",
 
