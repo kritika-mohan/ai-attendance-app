@@ -184,15 +184,6 @@ input, select, textarea { font-family: inherit; }
 }
 .theme-toggle:hover { background: var(--bg-card-hover); transform: rotate(20deg); }
 
-.view-toggle {
-  display: flex;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 4px;
-  gap: 4px;
-}
-
 /* ── Buttons ─────────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

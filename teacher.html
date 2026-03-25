@@ -108,11 +108,7 @@
       <!-- Right: Live Attendance -->
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-          <h2 class="section-title" style="margin-bottom:0">Attendance View</h2>
-          <div class="view-toggle">
-            <button class="btn btn-ghost btn-sm active" id="view-live-btn" onclick="setView('live')">Live Session</button>
-            <button class="btn btn-ghost btn-sm" id="view-today-btn" onclick="setView('today')">Today's Summary</button>
-          </div>
+          <h2 class="section-title" style="margin-bottom:0">Live Attendance</h2>
           <span class="badge badge-success" id="live-badge" style="display:none">
             <span class="counter-dot green"></span> LIVE
           </span>
@@ -134,7 +130,7 @@
         </div>
 
         <!-- Live Attendance Table -->
-        <div class="table-wrapper" id="live-table-view">
+        <div class="table-wrapper">
           <table class="sc-table" id="live-table">
             <thead>
               <tr>
@@ -146,23 +142,6 @@
             </thead>
             <tbody id="live-tbody">
               <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">Session not started yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Today's Summary Table (hidden by default) -->
-        <div class="table-wrapper hidden" id="today-table-view">
-          <table class="sc-table" id="today-table">
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>Course Name</th>
-                <th>Scan Time</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="today-tbody">
-              <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No records for today.</td></tr>
             </tbody>
           </table>
         </div>
@@ -355,51 +334,6 @@
           total > 0 ? Math.round((records.length / total) * 100) + '%' : '0%';
       }
 
-      // ── View Switching Logic ───────────────────────────────────────────────
-      window.setView = async function(view) {
-        const liveBtn = document.getElementById('view-live-btn');
-        const todayBtn = document.getElementById('view-today-btn');
-        const liveView = document.getElementById('live-table-view');
-        const todayView = document.getElementById('today-table-view');
-
-        if (view === 'live') {
-          liveBtn.classList.add('active');
-          todayBtn.classList.remove('active');
-          liveView.classList.remove('hidden');
-          todayView.classList.add('hidden');
-        } else {
-          liveBtn.classList.remove('active');
-          todayBtn.classList.add('active');
-          liveView.classList.add('hidden');
-          todayView.classList.remove('hidden');
-          await refreshTodaySummary();
-        }
-      };
-
-      async function refreshTodaySummary() {
-        const profileStr = localStorage.getItem('sc_profile');
-        if (!profileStr) return;
-        const teacherProfile = JSON.parse(profileStr);
-
-        const tbody = document.getElementById('today-tbody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px"><div class="loader" style="margin:0 auto;width:24px;height:24px"></div></td></tr>';
-
-        const records = await getTodaysAttendance(teacherProfile.id);
-        
-        if (records.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">No records for today.</td></tr>';
-          return;
-        }
-
-        tbody.innerHTML = records.map(r => `
-          <tr>
-            <td><strong>${escHtml(r.users?.name ?? '—')}</strong></td>
-            <td>${escHtml(r.course_name)}</td>
-            <td>${new Date(r.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-            <td><span class="badge badge-success">Present</span></td>
-          </tr>
-        `).join('');
-      }
     }
 
     function escHtml(str) {
