@@ -11,11 +11,10 @@ export const CONFIG = {
   SUPABASE_URL: "https://dlniwkemnkfirgvhjhty.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRsbml3a2VtbmtmaXJndmhqaHR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1NTA2MjMsImV4cCI6MjA4OTEyNjYyM30.tNxkc2hAIdNnEFWK-_yotGo1WAe3eoLWVLJP1GCDak8",
 
-  // ── OpenRouter AI ───────────────────────────────────────────────────────────
-  // Get your key from: https://openrouter.ai/keys
-  OPENROUTER_API_KEY: "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",
-  OPENROUTER_MODEL: "openai/gpt-3.5-turbo",
-  OPENROUTER_URL: "https://openrouter.ai/api/v1/chat/completions",
+  // ── AI Insights (Secure) ──────────────────────────────────────────────────
+  // The API key is now hidden in Vercel environment variables.
+  // The frontend calls a local API route which proxies the request.
+  INSIGHTS_ENDPOINT: "/api/insights",
 
   // ── QR Session ──────────────────────────────────────────────────────────────
   QR_REFRESH_SECONDS: 30,   // how often the QR code rotates (seconds)
