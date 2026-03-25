@@ -5,12 +5,13 @@
  * rich, actionable insights for the teacher dashboard.
  */
 
-import { CONFIG } from '../config.js';
+import { CONFIG }         from '../config.js';
+import { supabaseClient } from './supabaseClient.js';
 
 /* ─── Main Export ───────────────────────────────────────────────────────────── */
 
 /**
- * Generates AI-powered attendance insights using OpenRouter API.
+ * Generates AI-powered attendance insights using Supabase Edge Functions.
  *
  * @param {Array} attendanceSummary  - Array of { name, email, course, present, total, pct }
  * @returns {Promise<string>}        - Plain-text insights from the model
@@ -18,12 +19,8 @@ import { CONFIG } from '../config.js';
 export async function generateInsights(attendanceSummary) {
   const prompt = buildPrompt(attendanceSummary);
 
-  const response = await fetch(CONFIG.INSIGHTS_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+  const { data, error } = await supabaseClient.functions.invoke(CONFIG.AI_FUNCTION_NAME, {
+    body: {
       messages: [
         {
           role: 'system',
@@ -42,18 +39,17 @@ Keep your response under 400 words and use emojis to make it scannable.`,
           content: prompt,
         },
       ],
-    }),
+    },
   });
 
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new Error(`AI Service error ${response.status}: ${errBody}`);
+  if (error) {
+    console.error('[AI Function Error]', error);
+    throw new Error(`AI Service Error: ${error.message || 'Unknown error'}`);
   }
 
-  const data    = await response.json();
   const content = data?.choices?.[0]?.message?.content;
-
   if (!content) throw new Error('Empty response from AI model.');
+
   return content;
 }
 
