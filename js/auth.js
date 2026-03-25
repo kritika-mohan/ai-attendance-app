@@ -29,16 +29,17 @@ export async function requireAuth() {
     profile = {
       id:     session.user.id,
       name:   meta.name || 'User',
+      email:  session.user.email,
       role:   meta.role || 'student',
       course: meta.course || 'General'
     };
 
     // Force an upsert to the database so RLS policies based on role/id work
-    try {
-      await supabaseClient.from('users').upsert(profile);
+    const { error: upsError } = await supabaseClient.from('users').upsert(profile);
+    if (upsError) {
+      console.error('[auth] Profile auto-provisioning failed:', upsError.message);
+    } else {
       console.log('[auth] Profile auto-provisioned successfully.');
-    } catch (e) {
-      console.error('[auth] Profile auto-provisioning failed:', e.message);
     }
   }
 
@@ -113,18 +114,17 @@ export async function loginUser(email, password) {
     profile = {
       id:     data.user.id,
       name:   meta.name || 'User',
+      email:  data.user.email,
       role:   meta.role || 'student',
       course: meta.course || 'General'
     };
 
     // Attempt to re-insert/update profile if it's missing (failsafe)
-    // We use .upsert() + ignore errors to ensure the user can still get in
-    try {
-      const { error: upsError } = await supabaseClient.from('users').upsert(profile);
-      if (upsError) console.error('[auth] Upsert failsafe failed:', upsError.message);
-      else console.log('[auth] Profile restored/verified successfully.');
-    } catch (e) {
-      console.error('[auth] Upsert fatal error:', e);
+    const { error: upsError } = await supabaseClient.from('users').upsert(profile);
+    if (upsError) {
+      console.error('[auth] Upsert failsafe failed:', upsError.message);
+    } else {
+      console.log('[auth] Profile restored/verified successfully.');
     }
   }
 

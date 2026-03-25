@@ -155,6 +155,7 @@ export async function getTeacherAttendanceSummary(teacherId, courseId = null) {
   }
 
   // Get all enrolled students for this course (or all if none)
+  let allStudents = [];
   let studentQuery = supabaseClient.from('users').select('id, name, email, course').eq('role', 'student');
   if (courseId) {
     const { data: enrolledStudents } = await supabaseClient
