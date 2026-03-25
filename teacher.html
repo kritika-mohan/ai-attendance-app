@@ -55,9 +55,17 @@
             </div>
           </div>
 
-          <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px">
-            Don't see your course? <a href="#" onclick="showCourseModal()" style="color:var(--accent-primary)">Create New Course</a>
-          </p>
+          <!-- Create Course Prompt -->
+          <div class="create-course-prompt">
+            <span class="prompt-icon">💡</span>
+            <div class="prompt-text">
+              Don't see your course? <span class="prompt-subtext">Create one to start tracking attendance.</span>
+            </div>
+            <button class="btn-add-course" onclick="showCourseModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              <span>New Course</span>
+            </button>
+          </div>
         </div>
 
         <div class="card" id="qr-panel">
