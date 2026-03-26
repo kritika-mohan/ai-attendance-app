@@ -1,59 +1,80 @@
-📌 AI Attendance App
+# 📌 AI Attendance App
 
-A smart attendance management system that uses QR-based authentication and real-time validation to simplify and secure attendance tracking.
+A smart attendance management system that uses **QR-based authentication** and **real-time validation** to simplify and secure attendance tracking.
 
-🔗 Live App: https://smartcurriculum.vercel.app/
+🔗 **Live App:** https://smartcurriculum.vercel.app/  
+📂 **GitHub Repo:** https://github.com/kritika-mohan/ai-attendance-app  
 
-📂 GitHub Repo: https://github.com/kritika-mohan/ai-attendance-app
+---
 
-🚀 Project Description
+## 🚀 Project Description
 
-The AI Attendance App is designed to replace traditional attendance systems with a faster, more secure, and automated solution.
+The **AI Attendance App** replaces traditional attendance methods with a faster, automated, and secure system.
 
-Instead of manual roll calls or spreadsheets, this system allows users to:
+Instead of manual roll calls or spreadsheets, users can:
+- Generate QR codes  
+- Scan or enter codes  
+- Mark attendance instantly  
 
-Generate and scan QR codes
-Mark attendance instantly
-Reduce proxy or fraudulent entries
+This reduces proxy attendance and ensures accuracy in real-time.
 
-The application is lightweight, responsive, and deployed for real-time usage.
+---
 
-✨ Key Features
-✅ QR Code-Based Attendance
-🔐 Validation System for Secure Entry
-⚡ Real-Time Attendance Marking
-🌐 Fully Deployed Web Application
-📱 Responsive User Interface
-🧩 Simple and Clean Workflow
-🛠️ Tech Stack
-Frontend
-HTML
-CSS
-JavaScript
-Backend / Logic
-JavaScript-based handling (client/server logic as per repo)
-Deployment
-Vercel
-📂 Project Structure
+## ✨ Key Features
+
+- ✅ QR Code-Based Attendance  
+- 🔐 Secure Validation System  
+- ⚡ Real-Time Attendance Marking  
+- 🌐 Fully Deployed Web Application  
+- 📱 Responsive UI (mobile-friendly)  
+- 🧩 Simple and Clean Workflow  
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- HTML  
+- CSS  
+- JavaScript  
+
+### Backend / Logic
+- JavaScript (client/server-side logic)
+
+### Deployment
+- Vercel  
+
+---
+
+## 📂 Project Structure
+
+```bash
 ai-attendance-app/
 │
-├── public/            # Static files (images, assets, etc.)
-├── src/               # Main application code
+├── public/            # Static assets
+├── src/
 │   ├── components/    # Reusable UI components
-│   ├── pages/         # Application pages
-│   ├── utils/         # Helper functions / logic
+│   ├── pages/         # App pages
+│   ├── utils/         # Helper functions
 │
-├── package.json       # Project configuration
-├── README.md          # Documentation
-⚙️ How It Works
-A QR code is generated for attendance
-Users scan or enter the QR code
-System validates the input
-Attendance is marked instantly
-💻 Installation & Setup
+├── package.json
+├── README.md
+```
 
-Run the project locally:
+---
 
+## ⚙️ How It Works
+
+1. QR code is generated for attendance  
+2. Users scan or enter the QR  
+3. System validates the input  
+4. Attendance is recorded instantly  
+
+---
+
+## 💻 Installation & Setup
+
+```bash
 # Clone the repository
 git clone https://github.com/kritika-mohan/ai-attendance-app.git
 
@@ -63,45 +84,71 @@ cd ai-attendance-app
 # Install dependencies
 npm install
 
-# Start the development server
+# Start development server
 npm run dev
-🌐 Deployment
+```
 
-The project is deployed using Vercel for fast and reliable hosting.
+---
+
+## 🌐 Deployment
+
+This project is deployed using **Vercel**.
 
 To deploy your own version:
 
+```bash
 npm install -g vercel
 vercel
-🎯 Use Cases
-College classrooms
-Workshops & seminars
-Training sessions
-Small organizations
-🔮 Future Enhancements
-🔍 QR Scanner integration (camera-based)
-🧑‍💼 Role-based login (Admin / Student)
-📊 Attendance analytics dashboard
-☁️ Database integration (MongoDB / Firebase)
-📱 Mobile-friendly enhancements
-👩‍💻 Authors
-Kritika
-Vani
-Manasvi
-Roopsha
-Samriddhi
-🤝 Contribution
+```
+
+---
+
+## 🎯 Use Cases
+
+- College classrooms  
+- Workshops & seminars  
+- Training sessions  
+- Small organizations  
+
+---
+
+## 🔮 Future Enhancements
+
+- 🔍 Camera-based QR Scanner  
+- 🧑‍💼 Role-based login (Admin / Student)  
+- 📊 Attendance analytics dashboard  
+- ☁️ Database integration (MongoDB / Firebase)  
+- 📱 Advanced mobile optimization  
+
+---
+
+## 👩‍💻 Authors
+
+- Kritika  
+- Vani  
+- Manasvi  
+- Roopsha  
+- Samriddhi  
+
+---
+
+## 🤝 Contribution
 
 Contributions are welcome!
 
-# Create a new branch
+```bash
+# Create a branch
 git checkout -b feature-name
 
 # Commit changes
-git commit -m "Added new feature"
+git commit -m "Add feature"
 
 # Push changes
 git push origin feature-name
-📄 License
+```
 
-This project is open-source and available under the MIT License.
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**.
