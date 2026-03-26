@@ -146,7 +146,7 @@
     import { startScanner, stopScanner, isScannerActive } from './js/qrScanner.js';
     import { getStudentAttendance, getStudentAttendanceStats } from './js/attendance.js';
     import { initThemeToggle, showToast, formatDateShort }  from './js/utils.js';
-    import { joinCourseByCode, getStudentEnrollments }     from './js/courseManager.js';
+    import { joinCourseByCode, getStudentEnrollments, unenrollStudent }     from './js/courseManager.js';
 
     initThemeToggle('theme-toggle');
     document.getElementById('logout-btn').addEventListener('click', logoutUser);
@@ -181,8 +181,12 @@
                   <h4 style="margin:0; font-size:1.05rem;">${e.courses.name}</h4>
                   <p style="margin:4px 0 0; font-size:0.8rem; color:var(--text-muted);">Teacher: ${e.courses.teacher.name}</p>
                 </div>
-                <div style="text-align:right">
+                <div style="text-align:right; display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
                    <span class="badge badge-info">${e.courses.join_code}</span>
+                   <button class="btn btn-ghost btn-sm" style="color:var(--danger); font-size:0.75rem; padding:2px 6px;" 
+                           onclick="handleUnenroll('${e.courses.id}', '${e.courses.name}')">
+                     Unenroll
+                   </button>
                 </div>
               </div>
             `).join('');
@@ -204,6 +208,18 @@
           const course = await joinCourseByCode(studentProfile.id, code);
           showToast('success', `Successfully joined ${course.name}!`);
           input.value = '';
+          await loadEnrollments();
+        } catch (err) {
+          showToast('error', err.message);
+        }
+      };
+
+      window.handleUnenroll = async function(courseId, courseName) {
+        if (!confirm(`Are you sure you want to unenroll from "${courseName}"?`)) return;
+
+        try {
+          await unenrollStudent(studentProfile.id, courseId);
+          showToast('success', `Unenrolled from ${courseName}`);
           await loadEnrollments();
         } catch (err) {
           showToast('error', err.message);

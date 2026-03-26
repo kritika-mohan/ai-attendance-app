@@ -65,6 +65,9 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               <span>New Course</span>
             </button>
+            <button id="delete-course-btn" class="btn btn-danger btn-sm hidden" style="margin-left:auto; font-size:0.75rem; padding: 4px 10px;" onclick="handleDeleteCourse()">
+               <span>Delete Selected</span>
+            </button>
           </div>
         </div>
 
@@ -171,7 +174,7 @@
     import { getSessionAttendance, getTodaysAttendance } from './js/attendance.js';
     import { initThemeToggle, showToast, formatDate } from './js/utils.js';
     import { supabaseClient }                     from './js/supabaseClient.js';
-    import { getTeacherCourses, createCourse }    from './js/courseManager.js';
+    import { getTeacherCourses, createCourse, deleteCourse }    from './js/courseManager.js';
 
     initThemeToggle('theme-toggle');
     document.getElementById('logout-btn').addEventListener('click', logoutUser);
@@ -209,9 +212,11 @@
         const courseId = e.target.value;
         const display = document.getElementById('join-code-display');
         const codeText = document.getElementById('active-join-code');
+        const deleteBtn = document.getElementById('delete-course-btn');
 
         if (!courseId) {
           display.classList.add('hidden');
+          deleteBtn.classList.add('hidden');
           return;
         }
 
@@ -219,8 +224,30 @@
         if (course) {
           codeText.textContent = course.join_code;
           display.classList.remove('hidden');
+          deleteBtn.classList.remove('hidden');
         }
       });
+
+      window.handleDeleteCourse = async function() {
+        const select = document.getElementById('course-select');
+        const courseId = select.value;
+        if (!courseId) return;
+
+        const course = courses.find(c => c.id === courseId);
+        const confirmMsg = `Are you sure you want to DELETE "${course.name}"?\n\nThis will permanently remove ALL attendance records and sessions for this course. This action CANNOT be undone.`;
+        
+        if (!confirm(confirmMsg)) return;
+
+        try {
+          await deleteCourse(courseId);
+          showToast('success', 'Course and all related data deleted.');
+          await loadCourses();
+          document.getElementById('join-code-display').classList.add('hidden');
+          document.getElementById('delete-course-btn').classList.add('hidden');
+        } catch (err) {
+          showToast('error', err.message);
+        }
+      };
 
       window.copyJoinCode = function() {
         const code = document.getElementById('active-join-code').textContent;

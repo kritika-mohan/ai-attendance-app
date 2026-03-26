@@ -54,10 +54,6 @@ export async function createCourse(teacherId, courseName, slot = 'General') {
   return data;
 }
 
-/**
- * Fetches all courses created by a teacher.
- * @param {string} teacherId
- */
 export async function getTeacherCourses(teacherId) {
   const { data, error } = await supabaseClient
     .from('courses')
@@ -67,6 +63,20 @@ export async function getTeacherCourses(teacherId) {
 
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+/**
+ * Deletes a course.
+ * @param {string} courseId
+ */
+export async function deleteCourse(courseId) {
+  const { error } = await supabaseClient
+    .from('courses')
+    .delete()
+    .eq('id', courseId);
+
+  if (error) throw new Error('Failed to delete course: ' + error.message);
+  return true;
 }
 
 /* ─── Student: Enrollment ──────────────────────────────────────────────────── */
@@ -131,4 +141,20 @@ export async function getStudentEnrollments(studentId) {
 
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+/**
+ * Unenrolls a student from a course.
+ * @param {string} studentId
+ * @param {string} courseId
+ */
+export async function unenrollStudent(studentId, courseId) {
+  const { error } = await supabaseClient
+    .from('enrollments')
+    .delete()
+    .eq('student_id', studentId)
+    .eq('course_id', courseId);
+
+  if (error) throw new Error('Failed to unenroll: ' + error.message);
+  return true;
 }
